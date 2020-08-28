@@ -1,0 +1,78 @@
+name: Build HMG for Windows 64 MINGW
+
+on:
+  push:
+    paths: 
+      - '.github/workflows/hmg_win64_mingw.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Clone HMG-Official/HMG
+      run: |
+         git clone https://github.com/HMG-Official/HMG.git HMG
+
+    - name: Clone harbour/core
+      run: |
+         cd HMG
+         git clone https://github.com/harbour/core.git harbour-64
+
+    - name: Install dependencies
+      run: |
+         choco install openssl
+         choco install curl
+
+    - name: Build Harbour
+      shell: cmd
+      run: |
+        cd HMG/harbour-64
+        set HB_BUILD_MODE=c
+        set HB_USER_PRGFLAGS=-l-
+        set HB_BUILD_CONTRIBS=
+        set HB_WITH_OPENSSL=C:\OpenSSL\include
+        set HB_WITH_CURL=C:\curl\include
+        set HB_STATIC_OPENSSL=yes
+        set HB_STATIC_CURL=yes       
+        set HB_COMPILER=mingw64
+        set HB_BUILD_CONTRIB_DYN=no
+        set HB_BUILD_DYN=no
+        SET PATH=C:\MSYS64\MINGW64\bin;%PATH%
+        win-make.exe
+
+    - name: Build HMG
+      shell: cmd
+      run: |
+        cd HMG
+        move harbour-64\bin\win\mingw64\*.* harbour-64\bin	  
+        SET PATH=C:\MSYS64\MINGW64\bin;%PATH%
+        SET HB_COMPILER=mingw64
+        _BuildAllLib64.bat
+
+    - name: Preparing result folders...
+      shell: cmd
+      run: |
+        cd HMG
+        mkdir result
+        mkdir result\harbour\bin
+        mkdir result\harbour\contrib
+        mkdir result\harbour\doc
+        mkdir result\harbour\include
+        mkdir result\harbour\lib
+        mkdir result\lib
+        move harbour-64\bin\*.* result\harbour\bin
+        move harbour-64\contrib\*.* result\harbour\contrib
+        move harbour-64\doc\*.* result\harbour\doc
+        move harbour-64\include\*.* result\harbour\include		
+        move harbour-64\lib\win\mingw64\*.* result\harbour\lib
+        move lib-64\*.* result\lib
+
+    - name: Create artifact
+      uses: actions/upload-artifact@v2
+      with:
+       name: hmg_win64_mingw
+       path: HMG\result
+
